@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+		<link rel="stylesheet" href="index.css">
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" 
+			integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+		<title>Notes</title>
+	</head>
+	<body>
+		<nav class="navbar navbar-expand-lg snavbar-light bg-light">
+			<span class="navbar-brand">Notes</span>
+			<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+				<span class="navbar-toggler-icon"></span>
+			</button>
+			<div class="collapse navbar-collapse" id="navbarSupportedContent">
+				<ul class="navbar-nav mr-auto">
+					<li class="nav-item">
+						<a class="nav-link font-weight-bold" href="#" id="new-button">New</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link font-weight-bold" href="#" id="save-button">Save</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link font-weight-bold" href="#" id="save-as-button">Save as</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link font-weight-bold" href="#" id="load-button">Load</a>
+					</li>
+				</ul>
+			</div>
+		</nav>
+
+		<div class="container-fluid" style="padding-top: 8px">
+			<div name="content" id="note"></div>
+		</div>
+
+		<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+			integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js"
+			integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js"
+			integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+		<script src="https://cdn.ckeditor.com/ckeditor5/11.2.0/classic/ckeditor.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/mouse0270-bootstrap-notify/3.1.7/bootstrap-notify.min.js"
+			integrity="sha256-LlN0a0J3hMkDLO1mhcMwy+GIMbIRV7kvKHx4oCxNoxI=" crossorigin="anonymous"></script>
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap-confirmation2@4.0.2/dist/bootstrap-confirmation.min.js"
+			integrity="sha256-kXOU25SzGb87lJUwyN168lZkoc8s5XwbNuvt8VaBEl4=" crossorigin="anonymous"></script>
+		<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/4.4.0/bootbox.min.js"
+			integrity="sha256-4F7e4JsAJyLUdpP7Q8Sah866jCOhv72zU5E8lIRER4w=" crossorigin="anonymous"></script>-->
+			<script src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/4.3.0/bootbox.min.js" integrity="sha256-V575iyeWlHo/wYPiNU6lsBxq2c9ay9IXj0ksHiF2du8=" crossorigin="anonymous"></script>
+		<script src="api/client.js"></script>
+		
+		<script>
+			let editor;
+			let currentModified = false;
+			let currentName;
+
+			ClassicEditor
+				.create(document.querySelector('#note'), {
+					removePlugins: ['MediaEmbed', 'Image', 'ImageCaption', 'ImageStyle', 'ImageToolbar', 'ImageUpload']
+				})
+				.then(newEditor => editor = newEditor)
+				.then(editor => {
+					editor.ui.view.editable.editableElement.style.height = (screen.availHeight - $('.navbar').height() - 210) + 'px';
+					editor.model.document.on('change:data', () => {
+						currentModified = true;
+					})
+				})
+				.catch(error => {
+					console.error(error);
+				});
+
+			$(window).on("beforeunload", e => {
+				if (currentModified) {
+					e.preventDefault();
+					e.returnValue = "You have unsaved changes!"
+				}
+			});
+
+
+			$('#new-button').click(async e => ui_new());
+			$('#load-button').click(async e => ui_load());
+			$('#save-button').click(async (e) => ui_save());
+			$('#save-as-button').click(async (e) => ui_saveAs());
+
+			async function ui_new() {
+				if (currentModified && !(await ask('Overwrite?', 'File has been modified. Overwrite?')))
+					return;
+				editor.setData('');
+				currentModified = false;
+				currentName = null;
+			}
+
+			async function ui_load() {
+				if (currentModified && !(await ask('Overwrite?', 'File has been modified. Overwrite?')))
+					return;
+				try {
+					const notes = (await list()).map(note => {
+						return { text: note, value: note };
+					});
+					if (notes.length == 0) {
+						showWarningMessage('No notes found');
+						return;
+					}
+					const selection = await choose('Select a note', notes);
+					if (selection) {
+						const response = await load(selection);
+						editor.setData(response);
+						currentModified = false;
+						currentName = selection;
+					}
+				} catch (e) {
+					showErrorMessage(e.message);
+				}
+			}
+
+			async function ui_save() {
+				try {
+					if (currentName) {
+						await save(currentName, true);
+						currentModified = false;
+						showSuccessMessage("Saved successfully");
+					} else {
+						ui_saveAs();
+					}
+				} catch (e) {
+					if (e.code === "already_exists") {
+						if (await ask("Overwrite?", "The note already exists. Overwrite it?")) {
+							await save(name, true);
+							currentModified = false;
+							showSuccessMessage("Saved successfully");
+						}
+					} else {
+						showErrorMessage(e.message);
+					}
+				}
+			}
+
+			async function ui_saveAs() {
+				const name = await askInput('Enter a name for the note');
+				if (name === undefined || name === null)
+					return;
+				if (name === '') {
+					showErrorMessage('Empty names are not allowed');
+					return;
+				}
+				try {
+					await save(name, false);
+				} catch (e) {
+					if (e.code === "already_exists") {
+						if (await ask("Overwrite?", "The note already exists. Overwrite it?")) {
+							await save(name, true);
+						}
+					} else {
+						showErrorMessage(e.message);
+						return;
+					}
+				}
+				currentModified = false;
+				currentName = name;
+				showSuccessMessage("Saved successfully");
+			}
+
+			async function askInput(msg) {
+				return new Promise(resolve => {
+					bootbox.prompt({
+						title: msg,
+						callback: resolve
+					});
+				});
+			}
+
+			async function ask(title, msg) {
+				return new Promise((resolve, reject) => {
+					bootbox.confirm({
+						title: title,
+						message: msg,
+						callback: resolve
+					});
+				});
+			}
+
+			async function choose(title, options) {
+				return new Promise(resolve => {
+					bootbox.prompt({
+						title: title,
+						inputType: 'select',
+						inputOptions: options,
+						callback: resolve
+					})
+				});
+			}
+
+			const showSuccessMessage = msg => showMessage(msg, "success");
+			const showWarningMessage = msg => showMessage(msg, "warning");
+			const showErrorMessage   = msg => showMessage(msg, "danger");
+
+			function showMessage(msg, type = 'info') {
+				$.notify({
+					message: msg
+				}, {
+					type: type,
+					animate: {
+						enter: 'animated bounceInDown',
+						exit: 'animated bounceOutUp'
+					},
+					offset: 4,
+					mouse_over: 'pause',
+					delay: 2000
+				});
+			}
+		</script>
+
+	</body>
+</html>
