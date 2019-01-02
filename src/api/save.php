@@ -2,24 +2,35 @@
 
 require_once('util.php');
 
-$content = file_get_contents('php://input');
-$overwrite = $_GET["overwrite"];
-$name = $_GET["name"];
+if (isset($_GET["overwrite"])) {
+	$overwrite = filter_var($_GET["overwrite"], FILTER_VALIDATE_BOOLEAN);
+} else {
+	$overwrite = false;
+}
 
-// Input conversion/validation
-$name = $result = preg_replace("/[^a-zA-Z0-9]/", "_", $name);
-$overwrite = filter_var($overwrite, FILTER_VALIDATE_BOOLEAN);
+
+if (isset($_GET["name"])) {
+	$name = $_GET["name"];
+} else {
+	error(400, "missing_argument", "save needs a name");
+}
+
+$id = fullNameToID($name);
+
+$content = file_get_contents('php://input');
 $content = strip_tags($content, '<h1><h2><h3><h4><h5><h6><p><b><strong><i><div><br><li><ul><ol><pre><a><figure><tr><td><table><thead><tbody>');
 $content = preg_replace("/(?!href|class)+=\".*?\"/", "", $content);
 
-$full_path = $base_path . "/" . $name . ".html";
+$full_path = getPathForID($id);
 
-if (file_exists($full_path) && !$overwrite) {
-	error(409, "already_exists", "The file already exists. Use \"overwrite=true\" to overwrite.");
+$files = getIndex();
+
+if (in_array($id, $files) && !$overwrite) {
+	error(409, "already_exists", "The file already exists.");
+} else {
+	tryWriteFile($full_path, $content);
+	$files[$name] = $id;
+	writeIndex($files);
 }
-
-$file = fopen($full_path, 'w') or error(500, "server_error", "Could not open resource");
-fwrite($file, $content);
-fclose($file);
 
 normal_exit();
