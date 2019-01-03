@@ -221,6 +221,16 @@
 			}
 
 			$('.action-btn[data-action]').each((i, btn) => $(btn).click(actionHandlers[$(btn).data('action')]));
+
+			$(window).keypress(e => {
+				if (e.ctrlKey && String.fromCharCode(e.which).toLowerCase() == 's') {
+					e.preventDefault();
+					actionHandlers['save']();
+					return false;
+				} else {
+					return true;
+				}
+			});
 		</script>
 
 	</body>
