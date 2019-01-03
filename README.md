@@ -6,6 +6,9 @@ A simple notes webapp. That's it.
 ## Usage
 To use this, simply copy the source directory to a web server.
 
+### API Documentation
+[See here](docs/api.md)
+
 ### Scripts
 
 #### package.sh
