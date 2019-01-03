@@ -57,7 +57,7 @@ An ``application/json`` response:
     "message": "<error_message>",
     "notes": [
         "<note1>",
-        "<note2">
+        "<note2>"
     ]
 }
 ```
