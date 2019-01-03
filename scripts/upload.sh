@@ -8,5 +8,5 @@ fi
 
 . scripts/.upload_conf.sh
 
-$sources=$(scripts/find_sources.sh | tr ' ' ',')
+sources=$(scripts/find_sources.sh | tr ' ' ',')
 curl -T "{$sources}" $host --user $user:$secret
