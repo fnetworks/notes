@@ -59,6 +59,12 @@
 			let currentNote = new Note();
 			let currentModified = false;
 
+			function updateTitle() {
+				document.title = 'Notes' 
+					+ (currentNote.name != null && currentNote.name != undefined ? (' | ' + currentNote.name) : '')
+					+ (currentModified ? ' *' : '');
+			}
+
 			ClassicEditor
 				.create(document.querySelector('#note'), {
 					removePlugins: ['MediaEmbed', 'Image', 'ImageCaption', 'ImageStyle', 'ImageToolbar', 'ImageUpload']
@@ -66,7 +72,12 @@
 				.then(newEditor => editor = newEditor)
 				.then(async editor => {
 					editor.ui.view.editable.editableElement.style.height = (screen.availHeight - $('.navbar').height() - 210) + 'px';
-					editor.model.document.on('change:data', () => currentModified = true);
+					editor.model.document.on('change:data', () => {
+						if (!currentModified) {
+							currentModified = true;
+							updateTitle();
+						}
+					});
 					await loadLastNote();
 				})
 				.catch(error => {
@@ -83,7 +94,10 @@
 			function newNote() {
 				currentNote = new Note();
 				editor.setData('');
-				currentModified = false;
+				if (currentModified) {
+					currentModified = false;
+					updateTitle();
+				}
 				storeNote(null);
 			}
 
@@ -95,7 +109,10 @@
 			function setNote(note) {
 				currentNote = note;
 				editor.setData(note.content);
-				currentModified = false;
+				if (currentModified) {
+					currentModified = false;
+					updateTitle();
+				}
 			}
 
 			function clearStoredNote() {
@@ -160,7 +177,10 @@
 					if (currentNote.name) {
 						currentNote.content = editor.getData();
 						await currentNote.save(true);
-						currentModified = false;
+						if (currentModified) {
+							currentModified = false;
+							updateTitle();
+						}
 						showSuccessMessage("Saved successfully");
 					} else {
 						actionHandlers["saveAs"]();
@@ -179,6 +199,7 @@
 					return;
 				}
 				currentNote.name = name;
+				updateTitle();
 				currentNote.content = editor.getData();
 				try {
 					await currentNote.save(false);
@@ -192,7 +213,10 @@
 						return;
 					}
 				}
-				currentModified = false;
+				if (currentModified) {
+					currentModified = false;
+					updateTitle();
+				}
 				showSuccessMessage("Saved successfully");
 			}
 
